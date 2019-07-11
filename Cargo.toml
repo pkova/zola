@@ -31,12 +31,14 @@ actix-web = { version = "1.0", default-features = false, features = [] }
 notify = "4"
 ws = "0.8"
 ctrlc = "3"
+globset = "0.4"
 
 site = { path = "components/site" }
 errors = { path = "components/errors" }
 front_matter = { path = "components/front_matter" }
 utils = { path = "components/utils" }
 rebuild = { path = "components/rebuild" }
+config = { path = "components/config" }
 
 [workspace]
 members = [

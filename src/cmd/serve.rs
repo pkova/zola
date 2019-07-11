@@ -21,6 +21,9 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+extern crate config;
+extern crate globset;
+
 use std::env;
 use std::fs::{read_dir, remove_dir_all, File};
 use std::io::Read;
@@ -43,6 +46,10 @@ use utils::fs::copy_file;
 
 use console;
 use rebuild;
+
+use cli;
+use cmd::serve::config::get_config;
+use cmd::serve::globset::GlobSet;
 
 #[derive(Debug, PartialEq)]
 enum ChangeKind {
@@ -330,8 +337,16 @@ pub fn serve(
     loop {
         match rx.recv() {
             Ok(event) => {
+
+                let matches = cli::build_cli().get_matches();
+                let config_file = matches.value_of("config").unwrap();
+                let config = get_config(&env::current_dir().unwrap(), config_file);
+
                 match event {
                     Rename(old_path, path) => {
+                        if is_ignored_file(config.ignored_content_globset, &path) {
+                            continue;
+                        }
                         if path.is_file() && is_temp_file(&path) {
                             continue;
                         }
@@ -379,6 +394,10 @@ pub fn serve(
                     // Intellij does weird things on edit, chmod is there to count those changes
                     // https://github.com/passcod/notify/issues/150#issuecomment-494912080
                     Create(path) | Write(path) | Remove(path) | Chmod(path) => {
+                        if is_ignored_file(config.ignored_content_globset, &path) {
+                            continue;
+                        }
+
                         if is_temp_file(&path) || path.is_dir() {
                             continue;
                         }
@@ -422,6 +441,13 @@ pub fn serve(
             }
             Err(e) => console::error(&format!("Watch error: {:?}", e)),
         };
+    }
+}
+
+fn is_ignored_file(ignored_content_globset: Option<GlobSet>, path: &Path) -> bool {
+    match ignored_content_globset {
+        Some(gs) => gs.is_match(path),
+        None => false
     }
 }
 
